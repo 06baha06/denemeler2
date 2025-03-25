@@ -6,7 +6,7 @@ const userRouter = express.Router();
 
 userRouter.post("/addadmin",authenticateUser,isSuperAdmin, addAdmin );
 userRouter.post("/approveTeacher", authenticateUser, isSchoolAdmin, approveTeacher);
-userRouter.get("/getApproveTeacher",authenticateUser,isSchoolAdmin, getApproveTeacher);
+userRouter.get("/getApproveTeacher",authenticateUser , isSchoolAdmin, getApproveTeacher);
 
 
 export default userRouter;
