@@ -1,4 +1,5 @@
 import School from "../models/school.js";
+import mongoose from "mongoose";
 
 /**
  * Süperadmin tarafından okul ekleme (admin olmadan)
@@ -22,7 +23,9 @@ export const addSchool = async (req, res, next) => {
             city,
             address,
             admin: null, // Henüz admin atanmamış
-            teachers: []
+            teachers: [],
+            classes: [],    // Sınıflar için boş dizi
+            students: []    // Öğrenciler için boş dizi
         });
 
         res.status(201).json({
@@ -36,15 +39,50 @@ export const addSchool = async (req, res, next) => {
     }
 };
 
+/**
+ * Tüm okulları listele
+ */
 export const getAllSchools = async (req, res, next) => {
     try {
-      const schools = await School.find({}).sort({ name: 1 });
-      
-      res.status(200).json({
-        success: true,
-        data: schools
-      });
+        // Okulları alfabetik sırala ve admin bilgilerini getir
+        const schools = await School.find({})
+            .populate("admin", "name email") // Admin bilgilerini getir
+            .sort({ name: 1 });
+
+        res.status(200).json({
+            success: true,
+            data: schools
+        });
     } catch (error) {
-      next(error);
+        next(error);
     }
-  };
+};
+export const getSchoolById = async (req, res, next) => {
+    try {
+        const schoolId = req.params.id;
+
+        // MongoDB ObjectId formatını kontrol et
+        if (!mongoose.Types.ObjectId.isValid(schoolId)) {
+            return res.status(400).json({
+                success: false,
+                message: "Geçersiz okul ID formatı"
+            });
+        }
+
+        // Okulu bul
+        const school = await School.findById(schoolId);
+        if (!school) {
+            return res.status(404).json({
+                success: false,
+                message: "Okul bulunamadı"
+            });
+        }
+
+        res.status(200).json({
+            success: true,
+            data: school
+        });
+    } catch (error) {
+        next(error);
+    }
+};

@@ -64,7 +64,9 @@ export const addAdmin = async (req, res, next) => {
     }
 };
 
-// controllers/user.controller.js
+/**
+ * Öğretmen onaylama işlemi
+ */
 export const approveTeacher = async (req, res, next) => {
     try {
         const { teacherId } = req.body; // Onaylanacak öğretmenin ID'si
@@ -139,16 +141,18 @@ export const approveTeacher = async (req, res, next) => {
         next(error);
     }
 };
-
+/**
+ * Onaylanmamış öğretmenleri listeleme
+ */
 export const getApproveTeacher = async (req, res, next) => {
-    // Onaylanması gereken kullanıcılar öğretmenlerin listelenmesi için
 
     try {
-        let filter = { role: "teacher", isApproved: false };
 
-        // Eğer kullanıcı 'superadmin' ise, okul filtresi uygulanmaz
+        let filter = { role: "teacher", isApproved: false };
+        // Eğer kullanıcı 'superadmin' ise, tüm onaylanmamış öğretmenleri getir
         if (req.user.role !== 'superadmin') {
-            filter.school = req.user.schoolId;  // Sadece kullanıcının okulundaki öğretmenleri getir
+            // Kullanıcının okulundaki öğretmenleri getir
+            filter.school = req.user.schoolId;
         }
 
         // Öğretmenleri filtrele ve okul bilgilerini de dahil et
@@ -162,3 +166,136 @@ export const getApproveTeacher = async (req, res, next) => {
         next(error);
     }
 };
+
+export const updateProfile = async (req, res, next) => {
+
+    try {
+        const { name, email } = req.body;
+        const userId = req.user.userId;
+
+        // Kullanıcıyı bul
+        const user = await User.findById(userId);
+        if (!user) {
+            return res.status(404).json({
+                success: false,
+                message: "User not found"
+            });
+        }
+
+        // Email adresinin başka bir kullanıcıda olup olmadığını kontrol et
+        const existingUser = await User.findOne({ email });
+        if (existingUser && existingUser._id.toString() !== userId.toString()) {
+            return res.status(409).json({
+                success: false,
+                message: "Email already in use"
+            });
+        }
+
+        // Kullanıcı bilgilerini güncelle
+        user.name = name;
+        user.email = email;
+
+        await user.save();
+
+        res.status(200).json({
+            success: true,
+            message: "Profile updated successfully",
+            data: user
+        });
+
+    } catch (error) {
+        next(error);
+    }
+}
+export const getProfile = async (req, res, next) => {
+
+    try {
+        const userId = req.user._id;
+
+        // Kullanıcıyı bul
+        const user = await User.findById(userId).populate("school");
+        if (!user) {
+            return res.status(404).json({
+                success: false,
+                message: "User not found"
+            });
+        }
+
+        res.status(200).json({
+            success: true,
+            data: user
+        });
+
+    } catch (error) {
+        next(error);
+    }
+
+
+}
+export const changePassword = async (req, res, next) => {
+    try {
+        const { oldPassword, newPassword } = req.body;
+        const userId = req.user.userId; // DİKKAT: userId!
+
+        // Kullanıcıyı bul
+        const user = await User.findById(userId);
+        if (!user) {
+            return res.status(404).json({
+                success: false,
+                message: "User not found"
+            });
+        }
+
+        const isMatch = await bcrypt.compare(oldPassword, user.password);
+        if (!isMatch) {
+            return res.status(400).json({
+                success: false,
+                message: "Old password is incorrect"
+            });
+        }
+
+        // Yeni şifreyi hashle
+        const salt = await bcrypt.genSalt(10);
+        const hashedPassword = await bcrypt.hash(newPassword, salt);
+
+        // Şifreyi güncelle
+        user.password = hashedPassword;
+        await user.save();
+
+        res.status(200).json({
+            success: true,
+            message: "Password changed successfully"
+        });
+
+    } catch (error) {
+        next(error);
+    }
+};
+
+export const getApprovedTeachersBySchool = async (req, res, next) => {
+    try {
+        // Kullanıcının admin olup olmadığını kontrol et
+        if (req.user.role !== 'admin') {
+            return res.status(403).json({
+                success: false,
+                message: "Only school admins can access this resource"
+            });
+        }
+
+        // Admin'in okulundaki onaylanmış öğretmenleri getir
+        const teachers = await User.find({
+            role: "teacher",
+            isApproved: true,
+            school: req.user.schoolId
+        }).populate("school");
+
+        res.status(200).json({
+            success: true,
+            data: teachers
+        });
+
+    } catch (error) {
+        next(error);
+    }
+};
+

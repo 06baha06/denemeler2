@@ -1,6 +1,8 @@
 import express from "express";
 import cookieParser from "cookie-parser";
 import cors from "cors";
+import path from "path";
+import { fileURLToPath } from "url";
 
 import {PORT, NODE_ENV} from "./config/env.js";
 import connectDB from "./database/mongodb.js";
@@ -9,6 +11,12 @@ import errorMiddleware from "./middlewares/error.middleware.js";
 import schoolRouter from "./routes/school.routes.js";
 import userRouter from "./routes/user.routes.js";
 import examRouter from "./routes/exam.routes.js";
+import studentRouter from "./routes/student.routes.js";
+import classRouter from "./routes/class.routes.js";
+
+// __dirname işlevselliğini ES modules için ekleme
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const app = express();
 
@@ -25,15 +33,20 @@ const corsOptions = {
 app.use(cors(corsOptions));
 
 // Diğer middleware'ler
-app.use(express.json());
-app.use(express.urlencoded({ extended: false }));
+app.use(express.json({ limit: '100mb' }));
+app.use(express.urlencoded({ limit: '100mb', extended:true}));
 app.use(cookieParser());
+
+// Statik dosyaları sunma - uploads klasörünü dışarıya aç
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Rotaları tanımlayın
 app.use('/api/auth', authRouter);
 app.use('/api/school', schoolRouter);
 app.use('/api/user', userRouter);
 app.use('/api/exam', examRouter);
+app.use('/api/student', studentRouter);
+app.use('/api/class', classRouter);
 
 // Hata middleware'i
 app.use(errorMiddleware);
